@@ -568,6 +568,22 @@ app.get('/api/paypal-config', (req, res) => {
   });
 });
 
+// ============ ROOT ROUTE ============
+app.get('/', (req, res) => {
+  res.status(200).json({ 
+    message: 'Affiliate AI Pro Backend API',
+    status: 'running',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      campaigns: '/api/campaigns',
+      transactions: '/api/transactions',
+      payments: '/api/payments',
+      auth: '/api/auth'
+    }
+  });
+});
+
 // ============ HEALTH CHECK ============
 app.get('/api/health', (req, res) => {
   res.status(200).json({ message: 'Backend is running!' });
