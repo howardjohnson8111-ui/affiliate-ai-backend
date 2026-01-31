@@ -1,0 +1,37 @@
+# Affiliate AI Pro - Python Requirements
+# Install with: pip install -r requirements.txt
+
+# Google Gemini AI
+google-generativeai==0.8.3
+
+# Supabase Database
+supabase==2.0.0
+postgrest-py==0.14.0
+
+# HTTP/REST
+requests==2.31.0
+
+# Environment variables
+python-dotenv==1.0.0
+
+# JSON/Data processing
+jsonschema==4.20.0
+
+# Date/Time
+pytz==2023.3
+
+# Optional: Flask for REST API
+flask==3.0.0
+flask-cors==4.0.0
+
+# Optional: JWT tokens
+pyjwt==2.8.1
+
+# Optional: Async operations
+aiohttp==3.9.1
+
+# Optional: Better logging
+loguru==0.7.2
+
+# Type hints and validation
+pydantic==2.5.0
