@@ -1,11 +1,36 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const axios = require('axios');
 const app = express();
 const PORT = 3001;
 
-// Middleware
-app.use(cors());
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      scriptSrc: ["'self'"],
+      connectSrc: ["'self'", "https://mxhvdwyuyxcmcrgljblc.supabase.co", "https://affiliate-ai-backend.onrender.com"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+    },
+  },
+}));
+
+// CORS: allow only your frontend and Supabase
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'https://affiliate-ai-backend.onrender.com',
+    'https://mxhvdwyuyxcmcrgljblc.supabase.co'
+  ],
+  credentials: true,
+}));
+
 app.use(express.json());
 
 // ============ SUPABASE AUTHENTICATION SETUP ============
