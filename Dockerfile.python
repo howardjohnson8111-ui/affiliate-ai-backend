@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application files
+COPY ai_service.py .
+COPY supabase_client.py .
+
+# Expose port
+EXPOSE 5000
+
+# Start application (configure for Flask or FastAPI)
+CMD ["python", "ai_service.py"]
