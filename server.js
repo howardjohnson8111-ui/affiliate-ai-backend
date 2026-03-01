@@ -924,6 +924,11 @@ app.post('/api/rules/evaluate', protect, async (req, res) => {
 
 // Scheduler: cron-friendly endpoint
 app.get('/api/scheduler/run', async (req, res) => {
+  // Optional token check (set SCHEDULER_TOKEN in Render env)
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (process.env.SCHEDULER_TOKEN && token !== process.env.SCHEDULER_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   const results = await runScheduler();
   res.status(200).json({ message: 'Scheduler run completed', results });
 });

@@ -1,0 +1,20 @@
+name: Scheduler Cron
+
+on:
+  schedule:
+    # Run every 6 hours (0, 6, 12, 18 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  run-scheduler:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Scheduler Endpoint
+        run: |
+          curl -X GET https://affiliate-ai-backend.onrender.com/api/scheduler/run \
+            -H "Content-Type: application/json" \
+            --fail --silent --show-error
+        env:
+          # Optional: add any auth headers if you secure the endpoint
+          # AUTH_TOKEN: ${{ secrets.SCHEDULER_TOKEN }}
