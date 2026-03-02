@@ -933,6 +933,25 @@ app.get('/api/scheduler/run', async (req, res) => {
   res.status(200).json({ message: 'Scheduler run completed', results });
 });
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    services: {
+      scheduler: true,
+      deadMansSwitch: true,
+      rulesEngine: true,
+      autopilot: true,
+      twoFactor: true,
+      payouts: true,
+      auditLog: true,
+      securityLockdown: true
+    }
+  });
+});
+
 // Start the server
 app.listen(PORT, () => {
   logger.log(`\n✅ [Server]: Affiliate AI Backend is running on http://localhost:${PORT}`);

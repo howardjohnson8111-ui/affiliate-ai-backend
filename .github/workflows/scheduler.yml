@@ -14,7 +14,5 @@ jobs:
         run: |
           curl -X GET https://affiliate-ai-backend.onrender.com/api/scheduler/run \
             -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SCHEDULER_TOKEN }}" \
             --fail --silent --show-error
-        env:
-          # Optional: add any auth headers if you secure the endpoint
-          # AUTH_TOKEN: ${{ secrets.SCHEDULER_TOKEN }}
