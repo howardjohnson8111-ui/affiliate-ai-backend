@@ -13,6 +13,7 @@ const { recordAction, getPattern, simulateAutopilot } = require('./patternLearne
 const { configure: configureDeadMans, ping: pingDeadMans, check: checkDeadMans } = require('./deadMansSwitch');
 const { addRule, removeRule, getRules, evaluateRules } = require('./rulesEngine');
 const { runScheduler } = require('./scheduler');
+const { backupData, configureProvider, getProviders } = require('./backupService');
 const app = express();
 const PORT = 3001;
 
@@ -947,9 +948,45 @@ app.get('/api/health', (req, res) => {
       twoFactor: true,
       payouts: true,
       auditLog: true,
-      securityLockdown: true
+      securityLockdown: true,
+      backup: true
     }
   });
+});
+
+// Backup: configure provider
+app.post('/api/backup/configure', protect, (req, res) => {
+  const { provider, config } = req.body;
+  if (!provider || !config) {
+    return res.status(400).json({ error: 'Provider and config required' });
+  }
+  try {
+    configureProvider(provider, config);
+    res.status(200).json({ message: `Provider ${provider} configured` });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Backup: get providers
+app.get('/api/backup/providers', protect, (req, res) => {
+  const providers = getProviders();
+  const safe = Object.entries(providers).map(([name, p]) => ({ name, enabled: p.enabled }));
+  res.status(200).json(safe);
+});
+
+// Backup: trigger manual backup
+app.post('/api/backup/trigger', protect, async (req, res) => {
+  const { data } = req.body;
+  if (!data) {
+    return res.status(400).json({ error: 'Data to backup required' });
+  }
+  try {
+    const results = await backupData(req.user.id, data);
+    res.status(200).json({ message: 'Backup completed', results });
+  } catch (err) {
+    res.status(500).json({ error: 'Backup failed' });
+  }
 });
 
 // Start the server
