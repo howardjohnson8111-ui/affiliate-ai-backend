@@ -14,6 +14,9 @@ const { configure: configureDeadMans, ping: pingDeadMans, check: checkDeadMans }
 const { addRule, removeRule, getRules, evaluateRules } = require('./rulesEngine');
 const { runScheduler } = require('./scheduler');
 const { backupData, configureProvider, getProviders } = require('./backupService');
+const { requireVPN } = require('./vpnMiddleware');
+const { requireHardwareKey } = require('./hardwareAuth');
+const { requireBiometric } = require('./biometricAuth');
 const app = express();
 const PORT = 3001;
 
@@ -53,7 +56,25 @@ app.use(cors({
 }));
 
 app.use(limiter);
+
+// Apply security middleware
 app.use(detectSuspicious);
+
+// Optional: Enable VPN requirement in production
+if (process.env.REQUIRE_VPN === 'true') {
+  app.use(requireVPN);
+}
+
+// Optional: Enable hardware key requirement in production
+if (process.env.REQUIRE_HARDWARE_KEY === 'true') {
+  app.use(requireHardwareKey);
+}
+
+// Optional: Enable biometric requirement in production
+if (process.env.REQUIRE_BIOMETRIC === 'true') {
+  app.use(requireBiometric);
+}
+
 app.use(express.json());
 
 // ============ SUPABASE AUTHENTICATION SETUP ============
@@ -987,6 +1008,27 @@ app.post('/api/backup/trigger', protect, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Backup failed' });
   }
+});
+
+// Security: Get hardware key challenge
+app.get('/api/security/hardware-challenge', (req, res) => {
+  const { generateHardwareChallenge } = require('./hardwareAuth');
+  res.status(200).json(generateHardwareChallenge());
+});
+
+// Security: Get biometric challenge
+app.get('/api/security/biometric-challenge', (req, res) => {
+  const { generateBiometricChallenge } = require('./biometricAuth');
+  res.status(200).json(generateBiometricChallenge());
+});
+
+// Security: Check if VPN is required
+app.get('/api/security/requirements', (req, res) => {
+  res.status(200).json({
+    vpn: process.env.REQUIRE_VPN === 'true',
+    hardwareKey: process.env.REQUIRE_HARDWARE_KEY === 'true',
+    biometric: process.env.REQUIRE_BIOMETRIC === 'true'
+  });
 });
 
 // Start the server
