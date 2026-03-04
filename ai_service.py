@@ -4,6 +4,8 @@ import os
 import re
 import google.genai as genai
 from google.genai import types
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 # Get API Key
 API_KEY = os.getenv("GOOGLE_API_KEY", "")
@@ -15,8 +17,9 @@ if not API_KEY:
 # This class will contain methods that make HTTP requests to your Node.js backend (localhost:3001).
 # Each method here corresponds to a function in the default_api that Gemini can call.
 class YourActualDefaultApi:
-    def __init__(self, base_url="http://localhost:3001/api"):
-        self.base_url = base_url
+    def __init__(self, base_url=None):
+        # Use deployed backend URL from environment or fallback to localhost
+        self.base_url = base_url or os.getenv("API_BASE_URL", "http://localhost:3001/api")
 
     # --- Campaign Functions ---
     def create_Campaign(self, name: str, platform: str, affiliate_link: str = None, 
@@ -1249,3 +1252,34 @@ if __name__ == "__main__":
             break
         except Exception as e:
             print(f"[Error]: {e}")
+
+# Flask app for Render deployment
+app = Flask(__name__)
+CORS(app, origins=os.getenv("CORS_ORIGIN", "*"))
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "healthy", "service": "affiliate-ai-pro-ai-service"})
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    try:
+        data = request.get_json()
+        user_input = data.get('message', '')
+        
+        if not user_input:
+            return jsonify({"error": "Message is required"}), 400
+        
+        # Initialize AI assistant
+        api = YourActualDefaultApi()
+        assistant = AffiliateAIProAssistant(api)
+        
+        # Get AI response
+        response = assistant.chat(user_input)
+        
+        return jsonify({"response": response})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
