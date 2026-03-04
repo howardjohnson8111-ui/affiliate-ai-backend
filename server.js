@@ -17,6 +17,7 @@ const { backupData, configureProvider, getProviders } = require('./backupService
 const { requireVPN } = require('./vpnMiddleware');
 const { requireHardwareKey } = require('./hardwareAuth');
 const { requireBiometric } = require('./biometricAuth');
+const { requireFaceScan, startFaceSession } = require('./faceRecognition');
 const app = express();
 const PORT = 3001;
 
@@ -73,6 +74,11 @@ if (process.env.REQUIRE_HARDWARE_KEY === 'true') {
 // Optional: Enable biometric requirement in production
 if (process.env.REQUIRE_BIOMETRIC === 'true') {
   app.use(requireBiometric);
+}
+
+// Optional: Enable face scan requirement in production
+if (process.env.REQUIRE_FACE_SCAN === 'true') {
+  app.use(requireFaceScan);
 }
 
 app.use(express.json());
@@ -1027,7 +1033,28 @@ app.get('/api/security/requirements', (req, res) => {
   res.status(200).json({
     vpn: process.env.REQUIRE_VPN === 'true',
     hardwareKey: process.env.REQUIRE_HARDWARE_KEY === 'true',
-    biometric: process.env.REQUIRE_BIOMETRIC === 'true'
+    biometric: process.env.REQUIRE_BIOMETRIC === 'true',
+    faceScan: process.env.REQUIRE_FACE_SCAN === 'true'
+  });
+});
+
+// Security: Start face scan session
+app.get('/api/security/face-session', (req, res) => {
+  const session = startFaceSession();
+  res.status(200).json(session);
+});
+
+// Security: Process face scan
+app.post('/api/security/face-scan', (req, res) => {
+  const { scanResult } = req.body;
+  if (!scanResult) {
+    return res.status(400).json({ error: 'Scan result required' });
+  }
+  
+  // In production, verify against stored face data
+  res.status(200).json({
+    verified: scanResult.confidence > 0.95,
+    sessionId: scanResult.sessionId
   });
 });
 
