@@ -262,7 +262,6 @@ class GlobalTradingService:
                 trades.append(trade)
         
         return {
-            'trades': trades,
             'total_invested': investment_amount,
             'strategy': strategy
         }
@@ -293,6 +292,121 @@ class GlobalTradingService:
                     {'symbol': 'TSLA', 'loss': -12.3},
                     {'symbol': 'ETH', 'loss': -5.8}
                 ]
+            }
+            
+            # Calculate additional metrics
+            portfolio['sharpe_ratio'] = self.calculate_sharpe_ratio(portfolio['monthly_returns'])
+            portfolio['max_drawdown'] = self.calculate_max_drawdown(portfolio['monthly_returns'])
+            portfolio['volatility'] = np.std(portfolio['monthly_returns']) * np.sqrt(12)  # Annualized
+            
+            return portfolio
+        except Exception as e:
+            return {'error': str(e)}
+    
+    def calculate_sharpe_ratio(self, returns):
+        """Calculate Sharpe ratio"""
+        if len(returns) < 2:
+            return 0
+        
+        returns_array = np.array(returns)
+        excess_returns = returns_array - 0.02/12  # Assuming 2% risk-free rate
+        
+        if np.std(excess_returns) == 0:
+            return 0
+        
+        sharpe = np.mean(excess_returns) / np.std(excess_returns) * np.sqrt(12)
+        return round(sharpe, 2)
+    
+    def calculate_max_drawdown(self, returns):
+        """Calculate maximum drawdown"""
+        if len(returns) < 2:
+            return 0
+        
+        cumulative = np.cumprod(1 + np.array(returns))
+        running_max = np.maximum.accumulate(cumulative)
+        drawdown = (cumulative - running_max) / running_max
+        
+        return round(abs(np.min(drawdown)) * 100, 2)
+    
+    def get_risk_assessment(self, portfolio_value, risk_tolerance='moderate'):
+        """Get risk assessment and recommendations"""
+        risk_profiles = {
+            'conservative': {'max_volatility': 10, 'max_drawdown': 5, 'recommended_allocation': {'stocks': 40, 'bonds': 40, 'crypto': 10, 'cash': 10}},
+            'moderate': {'max_volatility': 15, 'max_drawdown': 10, 'recommended_allocation': {'stocks': 60, 'bonds': 20, 'crypto': 15, 'cash': 5}},
+            'aggressive': {'max_volatility': 25, 'max_drawdown': 20, 'recommended_allocation': {'stocks': 80, 'bonds': 10, 'crypto': 7, 'cash': 3}}
+        }
+        
+        profile = risk_profiles.get(risk_tolerance, risk_profiles['moderate'])
+        
+        return {
+            'risk_tolerance': risk_tolerance,
+            'current_risk_score': self.calculate_risk_score(portfolio_value),
+            'recommendations': [
+                f"Maximum volatility should be under {profile['max_volatility']}%",
+                f"Maximum drawdown should be under {profile['max_drawdown']}%",
+                f"Recommended allocation: {profile['recommended_allocation']}"
+            ],
+            'rebalancing_suggestions': self.generate_rebalancing_suggestions(profile['recommended_allocation'])
+        }
+    
+    def calculate_risk_score(self, portfolio_value):
+        """Calculate portfolio risk score"""
+        # Mock calculation - in production, use actual portfolio data
+        volatility_score = min(40, portfolio_value * 0.0001)  # Volatility component
+        concentration_score = 20  # Concentration risk
+        liquidity_score = 15  # Liquidity risk
+        
+        total_score = volatility_score + concentration_score + liquidity_score
+        return min(100, total_score)
+    
+    def generate_rebalancing_suggestions(self, target_allocation):
+        """Generate portfolio rebalancing suggestions"""
+        suggestions = []
+        
+        for asset_class, target_percentage in target_allocation.items():
+            suggestions.append({
+                'asset_class': asset_class,
+                'target_percentage': target_percentage,
+                'current_percentage': np.random.uniform(target_percentage - 10, target_percentage + 10),
+                'action': 'buy' if np.random.random() > 0.5 else 'sell',
+                'amount_to_rebalance': abs(target_percentage - np.random.uniform(target_percentage - 10, target_percentage + 10))
+            })
+        
+        return suggestions
+    
+    def get_international_properties(self):
+        """Get international real estate opportunities"""
+        international = [
+            {
+                'id': 'INT1',
+                'address': 'London, UK',
+                'type': 'multi_family',
+                'price': 1250000,
+                'currency': 'GBP',
+                'usd_price': 1580000,
+                'cap_rate': 7.8,
+                'cash_flow': 3800,
+                'currency_exchange': 1.264
+            },
+            {
+                'id': 'INT2',
+                'address': 'Toronto, Canada',
+                'type': 'multi_family',
+                'price': 980000,
+                'currency': 'CAD',
+                'usd_price': 720000,
+                'cap_rate': 8.2,
+                'cash_flow': 2900,
+                'currency_exchange': 0.735
+            }
+        ]
+        
+        return international
+
+class RealEstateService:
+    def __init__(self):
+        self.properties = []
+    
     def search_properties(self, location, property_type='multi_family', min_price=None, max_price=None):
         """Search for real estate properties"""
         # Mock data - in production, integrate with Zillow/Realtor APIs
@@ -329,35 +443,6 @@ class GlobalTradingService:
             properties = [p for p in properties if p['price'] <= max_price]
         
         return properties
-    
-    def get_international_properties(self):
-        """Get international real estate opportunities"""
-        international = [
-            {
-                'id': 'INT1',
-                'address': 'London, UK',
-                'type': 'multi_family',
-                'price': 1250000,
-                'currency': 'GBP',
-                'usd_price': 1580000,
-                'cap_rate': 7.8,
-                'cash_flow': 3800,
-                'currency_exchange': 1.264
-            },
-            {
-                'id': 'INT2',
-                'address': 'Toronto, Canada',
-                'type': 'multi_family',
-                'price': 980000,
-                'currency': 'CAD',
-                'usd_price': 720000,
-                'cap_rate': 8.2,
-                'cash_flow': 2900,
-                'currency_exchange': 0.735
-            }
-        ]
-        
-        return international
 
 class BusinessFormationService:
     def __init__(self):
@@ -536,14 +621,23 @@ task_service = TaskAutomationService()
 # Initialize the AffiliateAIExecutive
 affiliate_ai = AffiliateAIExecutive()
 
-# Define routes and logic here
+# Configure CORS
+CORS(app, origins=os.getenv("CORS_ORIGIN", "*"))
+
+# Health check endpoint
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
 
 # Trading Endpoints
-@app.route('/api/trading/stocks/<symbol>', methods=['GET'])
-def get_stock_data(symbol):
+@app.route('/api/trading/strategy/<symbol>/<strategy_type>', methods=['GET'])
+def execute_trading_strategy(symbol, strategy_type):
     try:
-        data = trading_service.get_stock_data(symbol)
-        return jsonify(data)
+        if strategy_type in trading_service.trading_strategies:
+            result = trading_service.trading_strategies[strategy_type](symbol)
+            return jsonify(result)
+        else:
+            return jsonify({"error": "Invalid strategy type"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
