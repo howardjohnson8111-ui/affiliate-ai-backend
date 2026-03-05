@@ -52,6 +52,101 @@ class GlobalTradingService:
         self.scheduler.start()
         self.active_trades = {}
         self.portfolio = {}
+        self.trading_strategies = {
+            'momentum': self.momentum_strategy,
+            'mean_reversion': self.mean_reversion_strategy,
+            'ai_ml': self.ai_ml_strategy
+        }
+        
+    def momentum_strategy(self, symbol):
+        """Momentum-based trading strategy"""
+        try:
+            data = self.get_stock_data(symbol)
+            if 'price' in data:
+                # Simple momentum logic
+                if data.get('change', 0) > 0:
+                    return {
+                        'action': 'buy',
+                        'confidence': min(0.8, abs(data.get('change', 0)) / data['price']),
+                        'reason': 'Positive momentum detected'
+                    }
+                else:
+                    return {
+                        'action': 'sell',
+                        'confidence': min(0.8, abs(data.get('change', 0)) / data['price']),
+                        'reason': 'Negative momentum detected'
+                    }
+        except Exception as e:
+            return {'error': str(e)}
+    
+    def mean_reversion_strategy(self, symbol):
+        """Mean reversion trading strategy"""
+        try:
+            stock = yf.Ticker(symbol)
+            data = stock.history(period="30d", interval="1d")
+            if len(data) > 20:
+                current_price = data['Close'].iloc[-1]
+                mean_price = data['Close'].iloc[:-5].mean()  # Exclude last 5 days
+                std_dev = data['Close'].iloc[:-5].std()
+                
+                z_score = (current_price - mean_price) / std_dev
+                
+                if z_score < -2:  # Significantly below mean
+                    return {
+                        'action': 'buy',
+                        'confidence': min(0.9, abs(z_score) / 3),
+                        'reason': f'Oversold (Z-score: {z_score:.2f})'
+                    }
+                elif z_score > 2:  # Significantly above mean
+                    return {
+                        'action': 'sell',
+                        'confidence': min(0.9, abs(z_score) / 3),
+                        'reason': f'Overbought (Z-score: {z_score:.2f})'
+                    }
+        except Exception as e:
+            return {'error': str(e)}
+    
+    def ai_ml_strategy(self, symbol):
+        """AI/ML-based trading strategy using Gemini"""
+        try:
+            # Get historical data
+            stock = yf.Ticker(symbol)
+            data = stock.history(period="90d", interval="1d")
+            
+            if len(data) > 30:
+                # Prepare data for AI analysis
+                recent_data = data.tail(30)
+                price_trend = 'up' if recent_data['Close'].iloc[-1] > recent_data['Close'].iloc[-10] else 'down'
+                volume_trend = 'increasing' if recent_data['Volume'].iloc[-5:].mean() > recent_data['Volume'].iloc[-30:-5].mean() else 'stable'
+                volatility = recent_data['Close'].pct_change().std() * 100
+                
+                # Use Gemini for analysis
+                model = genai.GenerativeModel('gemini-pro')
+                prompt = f"""
+                Analyze this stock data for {symbol}:
+                - Current Price: ${recent_data['Close'].iloc[-1]:.2f}
+                - 30-day Trend: {price_trend}
+                - Volume Trend: {volume_trend}
+                - Volatility: {volatility:.2f}%
+                
+                Provide a trading recommendation (BUY/SELL/HOLD) with confidence level (0-100) and reasoning.
+                Keep it concise and focus on risk management.
+                """
+                
+                response = model.generate_content(prompt)
+                return {
+                    'action': 'AI_RECOMMENDATION',
+                    'confidence': 0.75,
+                    'reason': response.text,
+                    'data_points': {
+                        'price': recent_data['Close'].iloc[-1],
+                        'trend': price_trend,
+                        'volume_trend': volume_trend,
+                        'volatility': volatility
+                    }
+                }
+        except Exception as e:
+            return {'error': str(e)}
         
     def get_stock_data(self, symbol):
         """Get real-time stock data"""
@@ -172,10 +267,32 @@ class GlobalTradingService:
             'strategy': strategy
         }
 
-class RealEstateService:
-    def __init__(self):
-        self.properties = []
-    
+    def get_portfolio_analytics(self, user_id):
+        """Get comprehensive portfolio analytics"""
+        try:
+            # Mock portfolio data - in production, get from database
+            portfolio = {
+                'total_value': 125000,
+                'total_invested': 100000,
+                'total_gain_loss': 25000,
+                'gain_loss_percentage': 25.0,
+                'dividend_income': 3200,
+                'crypto_value': 15000,
+                'stock_value': 85000,
+                'real_estate_value': 25000,
+                'cash_balance': 5000,
+                'risk_score': 65,
+                'diversification_score': 78,
+                'monthly_returns': [2.1, 1.8, -0.5, 3.2, 1.1, 2.8],
+                'top_performers': [
+                    {'symbol': 'AAPL', 'gain': 15.2},
+                    {'symbol': 'BTC', 'gain': 28.5},
+                    {'symbol': 'VZ', 'gain': 8.7}
+                ],
+                'worst_performers': [
+                    {'symbol': 'TSLA', 'loss': -12.3},
+                    {'symbol': 'ETH', 'loss': -5.8}
+                ]
     def search_properties(self, location, property_type='multi_family', min_price=None, max_price=None):
         """Search for real estate properties"""
         # Mock data - in production, integrate with Zillow/Realtor APIs
@@ -561,6 +678,164 @@ def get_active_tasks(user_id):
     try:
         tasks = task_service.get_active_tasks(user_id)
         return jsonify(tasks)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Advanced Trading & Analytics Endpoints
+@app.route('/api/trading/strategy/<symbol>/<strategy_type>', methods=['GET'])
+def execute_trading_strategy(symbol, strategy_type):
+    try:
+        if strategy_type in trading_service.trading_strategies:
+            strategy_func = trading_service.trading_strategies[strategy_type]
+            result = strategy_func(symbol)
+            return jsonify(result)
+        else:
+            return jsonify({"error": "Invalid strategy type"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/portfolio/analytics/<user_id>', methods=['GET'])
+def get_portfolio_analytics(user_id):
+    try:
+        analytics = trading_service.get_portfolio_analytics(user_id)
+        return jsonify(analytics)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/portfolio/risk-assessment', methods=['POST'])
+def get_risk_assessment():
+    try:
+        data = request.get_json()
+        portfolio_value = data.get('portfolio_value')
+        risk_tolerance = data.get('risk_tolerance', 'moderate')
+        
+        assessment = trading_service.get_risk_assessment(portfolio_value, risk_tolerance)
+        return jsonify(assessment)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/portfolio/rebalance', methods=['POST'])
+def rebalance_portfolio():
+    try:
+        data = request.get_json()
+        target_allocation = data.get('target_allocation')
+        
+        suggestions = trading_service.generate_rebalancing_suggestions(target_allocation)
+        return jsonify(suggestions)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Enhanced Real Estate Endpoints
+@app.route('/api/real-estate/valuation', methods=['POST'])
+def estimate_property_value():
+    try:
+        data = request.get_json()
+        address = data.get('address')
+        property_type = data.get('property_type', 'single_family')
+        
+        # Mock valuation - in production, integrate with valuation APIs
+        valuation = {
+            'address': address,
+            'estimated_value': np.random.uniform(200000, 1500000),
+            'price_per_sqft': np.random.uniform(150, 400),
+            'comparable_properties': np.random.randint(3, 8),
+            'market_trend': np.random.choice(['increasing', 'stable', 'decreasing']),
+            'confidence': np.random.uniform(0.7, 0.95),
+            'valuation_date': datetime.now().isoformat()
+        }
+        
+        return jsonify(valuation)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/real-estate/investment-analysis', methods=['POST'])
+def analyze_real_estate_investment():
+    try:
+        data = request.get_json()
+        property_price = data.get('price')
+        down_payment = data.get('down_payment', 0.2 * property_price)
+        rental_income = data.get('rental_income', 0)
+        
+        analysis = {
+            'property_price': property_price,
+            'down_payment': down_payment,
+            'loan_amount': property_price - down_payment,
+            'monthly_rental_income': rental_income,
+            'annual_rental_income': rental_income * 12,
+            'gross_yield': (rental_income * 12) / property_price * 100 if property_price > 0 else 0,
+            'net_yield': ((rental_income * 12) - (property_price * 0.01)) / property_price * 100 if property_price > 0 else 0,  # Assuming 1% maintenance
+            'cash_on_cash_return': (property_price - down_payment) / rental_income if rental_income > 0 else 0,
+            'recommendation': 'Good investment' if rental_income > property_price * 0.008 else 'Needs higher rental income'
+        }
+        
+        return jsonify(analysis)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Enhanced Business Formation Endpoints
+@app.route('/api/business/credit-monitoring/<entity_id>', methods=['GET'])
+def monitor_business_credit(entity_id):
+    try:
+        # Mock credit monitoring data
+        monitoring = {
+            'entity_id': entity_id,
+            'credit_score': np.random.randint(650, 850),
+            'score_change': np.random.uniform(-5, 15),
+            'last_updated': datetime.now().isoformat(),
+            'trade_lines': {
+                'total': np.random.randint(5, 25),
+                'active': np.random.randint(3, 15),
+                'total_limit': np.random.uniform(50000, 250000),
+                'utilization': np.random.uniform(15, 45)
+            },
+            'payment_history': {
+                'on_time_payments': np.random.randint(90, 100),
+                'late_payments': np.random.randint(0, 10),
+                'missed_payments': np.random.randint(0, 3)
+            },
+            'recommendations': [
+                'Pay down high-balance credit cards',
+                'Increase credit limits',
+                'Diversify credit mix',
+                'Monitor credit utilization'
+            ]
+        }
+        
+        return jsonify(monitoring)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/business/tax-planning', methods=['POST'])
+def generate_tax_planning():
+    try:
+        data = request.get_json()
+        entity_type = data.get('entity_type', 'llc')
+        expected_income = data.get('expected_income', 100000)
+        
+        planning = {
+            'entity_type': entity_type,
+            'expected_income': expected_income,
+            'estimated_tax_bracket': 22 if entity_type == 'llc' else 21,  # Simplified
+            'federal_tax': expected_income * 0.22,
+            'state_tax': expected_income * 0.05,
+            'self_employment_tax': expected_income * 0.153,  # Simplified
+            'total_tax_rate': 0.423,
+            'quarterly_estimated_tax': expected_income * 0.423 / 4,
+            'deductions': [
+                'Business expenses',
+                'Home office deduction',
+                'Health insurance premiums',
+                'Retirement contributions'
+            ],
+            'recommendations': [
+                'Consider S-Corporation for higher income',
+                'Maximize retirement contributions',
+                'Keep detailed expense records',
+                'Consult tax professional'
+            ]
+        }
+        
+        return jsonify(planning)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
