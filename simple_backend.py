@@ -11,6 +11,13 @@ app = Flask(__name__)
 # Configure CORS
 CORS(app, origins=os.getenv("CORS_ORIGIN", "*"))
 
+# Development logging
+if os.getenv("DEBUG", "true").lower() == "true":
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    app.logger.setLevel(logging.DEBUG)
+    print("🐛 Debug mode enabled - detailed logging active")
+
 # Mock data and services
 class TradingService:
     def get_portfolio_analytics(self, user_id):
@@ -126,6 +133,46 @@ real_estate_service = RealEstateService()
 def health_check():
     return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
 
+# Debug endpoints (only in development mode)
+if os.getenv("DEBUG", "true").lower() == "true":
+    @app.route('/debug/routes', methods=['GET'])
+    def debug_routes():
+        """List all available routes"""
+        routes = []
+        for rule in app.url_map.iter_rules():
+            routes.append({
+                'endpoint': rule.endpoint,
+                'methods': list(rule.methods),
+                'rule': str(rule)
+            })
+        return jsonify({"routes": routes})
+    
+    @app.route('/debug/config', methods=['GET'])
+    def debug_config():
+        """Show current configuration"""
+        return jsonify({
+            "debug": os.getenv("DEBUG", "true"),
+            "port": os.getenv("PORT", "5000"),
+            "cors_origin": os.getenv("CORS_ORIGIN", "*"),
+            "environment": "development"
+        })
+    
+    @app.route('/debug/test/<endpoint>', methods=['GET', 'POST'])
+    def debug_test_endpoint(endpoint):
+        """Test any endpoint with mock data"""
+        if request.method == 'GET':
+            return jsonify({
+                "message": f"GET test for {endpoint}",
+                "query_params": dict(request.args),
+                "timestamp": datetime.now().isoformat()
+            })
+        else:
+            return jsonify({
+                "message": f"POST test for {endpoint}",
+                "data": request.get_json(),
+                "timestamp": datetime.now().isoformat()
+            })
+
 # Portfolio Analytics Endpoints
 @app.route('/api/portfolio/analytics/<user_id>', methods=['GET'])
 def get_portfolio_analytics(user_id):
@@ -190,8 +237,18 @@ def execute_trading_strategy(symbol, strategy_type):
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
+    # Development mode with debug enabled
+    debug_mode = os.getenv("DEBUG", "true").lower() == "true"
+    port = int(os.getenv("PORT", 5000))
+    
+    print(f"🚀 Starting Affiliate AI Backend in {'Development' if debug_mode else 'Production'} mode")
+    print(f"📍 Port: {port}")
+    print(f"🐛 Debug: {debug_mode}")
+    print(f"🌐 CORS Origin: {os.getenv('CORS_ORIGIN', '*')}")
+    
     app.run(
         host='0.0.0.0',
-        port=int(os.getenv("PORT", 5000)),
-        debug=False
+        port=port,
+        debug=debug_mode,
+        threaded=True
     )
