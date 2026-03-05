@@ -1,2 +1,2 @@
-web: gunicorn simple_backend:app
+web: gunicorn app:app
 release: echo "Release command not needed"
